@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="PFR_parser:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/PFR_parser_jar</output-path>
+    <root id="archive" name="PFR_parser.jar">
+      <element id="module-output" name="PFR_parser" />
+    </root>
+  </artifact>
+</component>
