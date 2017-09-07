@@ -6,6 +6,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+
 import javafx.scene.control.TextField;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -39,6 +40,7 @@ public class Controller {
     @FXML
     private TextField filePathTextField;
 
+
     @FXML
     private TextField unIdentifiedValueField;
 
@@ -46,7 +48,10 @@ public class Controller {
     private TextField otherIdentifiedValueField;
 
     @FXML
-    private TextField rowCounterTextField;
+    private TextField rowsIdentificationCounter;
+
+    @FXML
+    private TextField rowsValidationCounter;
 
     @FXML
     private TextField successValueField;
@@ -64,11 +69,20 @@ public class Controller {
 
         startConvertionBtn.setDisable(true);
 
-        rowCounterTextField.textProperty().addListener(new ChangeListener<String>() {
+        rowsIdentificationCounter.textProperty().addListener(new ChangeListener<String>() {
             @Override
             public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
                 if (!newValue.matches("\\d*")) {
-                    rowCounterTextField.setText(newValue.replaceAll("[^\\d]", ""));
+                    rowsIdentificationCounter.setText(newValue.replaceAll("[^\\d]", ""));
+                }
+            }
+        });
+
+        rowsValidationCounter.textProperty().addListener(new ChangeListener<String>() {
+            @Override
+            public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+                if (!newValue.matches("\\d*")) {
+                    rowsValidationCounter.setText(newValue.replaceAll("[^\\d]", ""));
                 }
             }
         });
@@ -114,42 +128,86 @@ public class Controller {
         File dir = directoryChooser.showDialog(btn.getScene().getWindow());
         fileChooser.getExtensionFilters().add(fileExtensions);
         //inputFileArray = fileChooser.showOpenMultipleDialog(btn.getScene().getWindow());
+        if(dir != null) {
         inputFileArray = Arrays.asList(dir.listFiles());
-        if(inputFileArray.size() == 1){
-            tf.setEditable(true);
-            fileToParse = inputFileArray.get(0);
-            tf.setText(fileToParse.getPath());
-        }
-        else {
-            tf.setEditable(false);
-            StringBuilder stringBuilder = new StringBuilder();
-            for(File f : inputFileArray){
-                stringBuilder.append(f.getName() + "; ");
+            if (inputFileArray.size() == 1) {
+                tf.setEditable(true);
+                fileToParse = inputFileArray.get(0);
+                tf.setText(fileToParse.getPath());
+            } else {
+                tf.setEditable(false);
+                StringBuilder stringBuilder = new StringBuilder();
+                for (File f : inputFileArray) {
+                    stringBuilder.append(f.getName() + "; ");
+                }
+                tf.setText(stringBuilder.toString());
             }
-            tf.setText(stringBuilder.toString());
+
+            btn.setDisable(false);
         }
-        btn.setDisable(false);
     }
 
     //Identification process
     @FXML
     public void startConvertingProcess(ActionEvent event){
         try {
-            for(File singleFile : inputFileArray){
-                fileToParse = singleFile;
 
-                if(fileToParse.isFile()) {
-                    if (fileToParse.getName().contains("IDENTIFICATION")) {
-                        parseIdentificationXML();
-                        createIdentificationAnswerXML();
-                    }
-                    if (fileToParse.getName().contains("VALIDATION")) {
-                        parseValidationXML();
-                        createValidationAnswerXML();
+            if (checkFileds()) {
+
+                ArrayList<Thread> runningThreads = new ArrayList<>();
+
+                for (File singleFile : inputFileArray) {
+                    fileToParse = singleFile;
+
+                    if (fileToParse.isFile()) {
+                        if (fileToParse.getName().contains("IDENTIFICATION")) {
+
+                            Thread t = new Thread(new Runnable() {
+                                public void run() {
+                                    try {
+                                        parseIdentificationXML();
+                                        createIdentificationAnswerXML();
+                                    }
+                                    catch (Exception e){
+                                        System.err.println(e.getStackTrace());
+                                    }
+
+                                }
+                            });
+
+                            runningThreads.add(t);
+
+                            t.start();
+
+                        }
+                        if (fileToParse.getName().contains("VALIDATION")) {
+
+                            Thread t = new Thread(new Runnable() {
+                                public void run() {
+                                    try {
+                                        parseValidationXML();
+                                        createValidationAnswerXML();
+                                    }
+                                    catch (Exception e){
+                                        System.err.println(e.getStackTrace());
+                                    }
+
+                                }
+                            });
+
+                            runningThreads.add(t);
+
+                            t.start();
+
+                        }
                     }
                 }
+
+                for(Thread thread : runningThreads){
+                    thread.join();
+                }
+                alertInfo("Готовые файлы вы можете найти здесь: " + System.getProperty("user.dir") + "/ в папках IDENTIFICATION_ANSWER и VALIDATION_ANSWER");
             }
-            alertInfo("Готовые файлы вы можете найти здесь: " + System.getProperty("user.dir") + "/ в папках IDENTIFICATION_ANSWER и VALIDATION_ANSWER");
         }
         catch (Exception e){
             System.err.println(e.getStackTrace());
@@ -224,7 +282,7 @@ public class Controller {
         double unIdentificated = Double.parseDouble(unIdentifiedValueField.getText())/100;
         double otherIdentificated = Double.parseDouble(otherIdentifiedValueField.getText())/100;
 
-        int rowCounter = Integer.parseInt(rowCounterTextField.getText());
+        int rowCounter = Integer.parseInt(rowsIdentificationCounter.getText());
 
         int objectsNumber = identifiedPersonArrayList.size();
 
@@ -447,7 +505,7 @@ public class Controller {
         double successValidPercent = Double.parseDouble(successValueField.getText())/100;
         double errorValidPercent = 1 - successValidPercent;
 
-        int rowCounter = Integer.parseInt(rowCounterTextField.getText());
+        int rowCounter = Integer.parseInt(rowsValidationCounter.getText());
 
         int objectsNumber = validatedPersonArrayList.size();
         ArrayList<ValidatedPerson> onlyValidatedPersoneList = new ArrayList<>();
@@ -467,7 +525,7 @@ public class Controller {
         }
 
         for(int i = (int)errorObjectsNumber; i < objectsNumber; i++ ){
-            validatedPersonArrayList.get(i).getValidationResult().setStatus("СНИЛС Подтерждён");
+            validatedPersonArrayList.get(i).getValidationResult().setStatus("СНИЛС ПОДТВЕРЖДЕН");
             onlyValidatedPersoneList.add(validatedPersonArrayList.get(i));
 
         }
@@ -598,6 +656,7 @@ public class Controller {
     private void alertInfo(String mes){
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Информация");
+        alert.setHeaderText("Информация");
         alert.setContentText(mes);
         alert.showAndWait();
     }
@@ -618,6 +677,24 @@ public class Controller {
         if(!create_dir.exists()){
             create_dir.mkdirs();
         }
+    }
+
+    private boolean checkFileds(){
+        unIdentifiedValueField.getText();
+        otherIdentifiedValueField.getText();
+        rowsIdentificationCounter.getText();
+        successValueField.getText();
+        if(unIdentifiedValueField.getText().isEmpty()
+                || otherIdentifiedValueField.getText().isEmpty()
+                || rowsIdentificationCounter.getText().isEmpty()
+                || successValueField.getText().isEmpty()
+                || rowsValidationCounter.getText().isEmpty()){
+
+            alertInfo("Заполните все поля!");
+            return false;
+        }
+        return true;
+
     }
 
     private String errorGenerator(){

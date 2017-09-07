@@ -3,6 +3,7 @@
     <output-path>$PROJECT_DIR$/out/artifacts/PFR_parser_jar</output-path>
     <root id="archive" name="PFR_parser.jar">
       <element id="module-output" name="PFR_parser" />
+      <element id="file-copy" path="$PROJECT_DIR$/src/resources/parserImage.png" />
     </root>
   </artifact>
 </component>
